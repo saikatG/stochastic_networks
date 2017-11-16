@@ -1,0 +1,373 @@
+num_steps 15;
+
+topology{
+	nodes { S1, S2, S3, S4 }
+	links{
+		(S1,pt1) <-> (S2,pt1),
+		(S2,pt2) <-> (S3,pt1),
+		(S2,pt3) <-> (S4,pt1),
+		(S3,pt2) <-> (S4,pt2),
+	}
+}
+
+packet_fields{ address, hops }
+
+programs{ S1 -> first, S2 -> node2, S3 -> node3, S4 -> node4 }
+
+query expectation(max3@S1);
+//query probability(infected@S1 + infected@S2 + infected@S3 + infected@S4 == 2);
+//query probability(infected@S1 + infected@S2 + infected@S3 + infected@S4 == 3);
+//query probability(infected@S1 + infected@S2 + infected@S3 + infected@S4 == 4);
+
+//query expectation(infected@S1 + infected@S2 + infected@S3 + infected@S4);
+
+def first(pkt,port) state a1(2), h1(1), a2(0), h2(0), max2(1), max3(0), max4(0){
+	if port == 1{
+		if a1 == 2 {
+			h1 = 1; 			
+		}
+		else if a2 == 2{			
+			h2 = 1;			
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = 2;
+				h1 = 1;
+			}
+			else{
+				a2 = 2;
+				h2 = 1;
+			}
+		}
+	}	
+
+	if pkt.address > 0 && pkt.address < 5 && pkt.address != 1{
+		if a1 == pkt.address{
+			if h1 > pkt.hops + 1{
+				h1 = pkt.hops + 1;
+			}		
+		}
+		else if a2 == pkt.address{
+			if h2 > pkt.hops + 1{
+				h2 = pkt.hops + 1;
+			}			
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = pkt.address;
+				h1 = pkt.hops + 1;
+			}
+			else{
+				a2 = pkt.address;
+				h2 = pkt.hops + 1;
+			}
+		}
+
+		if pkt.address == 3{
+		    max3 = pkt.hops + 1;
+		}
+		else if pkt.address == 4{
+			max4 = pkt.hops + 1;
+		}
+	}
+
+	
+	choice := uniformInt(1,3); //choice of what to send
+	if choice == 1{
+		new;
+		pkt.address = a1;
+		pkt.hops = h1;
+		fwd(1);
+	}
+	else if choice == 2{
+		new;
+		pkt.address = a2;
+		pkt.hops = h2;
+		fwd(1);
+	}	
+
+}
+
+
+def node2(pkt,port) state a1(0),h1(0),a2(0),h2(0){
+	if port == 1{
+		if a1 == 1 {			
+			h1 = 1; 			
+		}
+		else if a2 == 1{			
+				h2 = 1;			
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = 1;
+				h1 = 1;
+			}
+			else{
+				a2 = 1;
+				h2 = 1;
+			}
+		}
+	}
+	if port == 2{
+		if a1 == 3 {
+			h1 = 1; 			
+		}
+		else if a2 == 3{			
+				h2 = 1;			
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = 3;
+				h1 = 1;
+			}
+			else{
+				a2 = 3;
+				h2 = 1;
+			}
+		}
+	}
+
+	if port == 3{
+		if a1 == 4 {		
+			h1 = 1; 		
+		}
+		else if a2 == 4{			
+			h2 = 1;
+		}
+		else{ //overwrite one of the entries
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = 4;
+				h1 = 1;
+			}
+			else{
+				a2 = 4;
+				h2 = 1;
+			}
+		}
+
+	}
+
+	if pkt.address > 0 && pkt.address < 5 && pkt.address != 2{
+		if a1 == pkt.address{
+			if h1 > pkt.hops + 1{
+				h1 = pkt.hops + 1;
+			}
+		}
+		else if a2 == pkt.address{
+			if h2 > pkt.hops + 1{
+				h2 = pkt.hops + 1;
+			}
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = pkt.address;
+				h1 = pkt.hops + 1;
+			}
+			else{
+				a2 = pkt.address;
+				h2 = pkt.hops + 1;
+			}
+		}
+	}
+	
+	choice := uniformInt(1,3); //choice of what to send
+	if choice == 1{
+		new;
+		pkt.address = a1;
+		pkt.hops = h1;
+		fwd(uniformInt(1,3));
+	}
+	else if choice == 2{
+		new;
+		pkt.address = a2;
+		pkt.hops = h2;
+		fwd(uniformInt(1,3));
+	}
+}
+
+def node3(pkt,port) state a1(2),h1(1),a2(0),h2(0){
+	if port == 1{//packet coming from 2
+		if a1 == 2 {			
+			h1 = 1; 			
+		}
+		else if a2 == 2{		
+			h2 = 1;			
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = 2;
+				h1 = 1;
+			}
+			else{
+				a2 = 2;
+				h2 = 1;
+			}
+		}
+	}
+	if port == 2{
+		if a1 == 4 {			
+			h1 = 1; 			
+		}
+		else if a2 == 4{			
+			h2 = 1;			
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = 4;
+				h1 = 1;
+			}
+			else{
+				a2 = 4;
+				h2 = 1;
+			}
+		}
+	}
+
+	if pkt.address > 0 && pkt.address < 5 && pkt.address != 3{
+		if a1 == pkt.address{
+			if h1 > pkt.hops + 1{
+				h1 = pkt.hops + 1;
+			}
+		}
+		else if a2 == pkt.address{
+			if h2 > pkt.hops + 1{
+				h2 = pkt.hops + 1;
+			}
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = pkt.address;
+				h1 = pkt.hops + 1;
+			}
+			else{
+				a2 = pkt.address;
+				h2 = pkt.hops + 1;
+			}
+		}
+	}
+	
+	choice :=uniformInt(1,3); //choice of what to send
+	if choice == 1{
+		new;
+		pkt.address = a1;
+		pkt.hops = h1;
+		fwd(uniformInt(1,2));
+	}
+	else if choice == 2{
+		new;
+		pkt.address = a2;
+		pkt.hops = h2;
+		fwd(uniformInt(1,2));
+	}
+	
+}
+
+def node4(pkt,port) state a1(2),h1(1),a2(0),h2(0){
+	if port == 1{//packet coming from 2
+		if a1 == 2 {			
+			h1 = 1; 			
+		}
+		else if a2 == 2{		
+			h2 = 1;			
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = 2;
+				h1 = 1;
+			}
+			else{
+				a2 = 2;
+				h2 = 1;
+			}
+		}
+	}
+	if port == 2{//packet coming from 3
+		if a1 == 3 {			
+				h1 = 1; 			
+		}
+		else if a2 == 3{			
+				h2 = 1;			
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = 3;
+				h1 = 1;
+			}
+			else{
+				a2 = 3;
+				h2 = 1;
+			}
+		}
+	}
+
+	if pkt.address > 0 && pkt.address < 5 && pkt.address != 4{
+		if a1 == pkt.address{
+			if h1 > pkt.hops + 1{
+				h1 = pkt.hops + 1;
+			}
+		}
+		else if a2 == pkt.address{
+			if h2 > pkt.hops + 1{
+				h2 = pkt.hops + 1;
+			}
+		}
+		else{
+			if flip(1/2){
+				a2 = a1;
+				h2 = h1;
+				a1 = pkt.address;
+				h1 = pkt.hops + 1;
+			}
+			else{
+				a2 = pkt.address;
+				h2 = pkt.hops + 1;
+			}
+		}
+	}
+	
+	choice := uniformInt(1,3); //choice of what to send
+	if choice == 1{
+		new;
+		pkt.address = a1;
+		pkt.hops = h1;
+		fwd(uniformInt(1,2));
+	}
+	else if choice == 2{
+		new;
+		pkt.address = a2;
+		pkt.hops = h2;
+		fwd(uniformInt(1,2));
+	}	
+}
+
+
+def scheduler(){
+	actions := ([]: (R x R)[]);
+	for i in [0..k){
+		if (Q_in@i).size() > 0 { actions ~= [(RunSw,i)]; }
+		if (Q_out@i).size() > 0 { actions ~= [(FwdQ,i)]; }
+	}
+	return actions[uniformInt(0,actions.length-1)];
+}
